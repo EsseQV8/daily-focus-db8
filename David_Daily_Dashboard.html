@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Dashboard — David Bishop</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red:#BE2E1B;--red-h:#a82618;--red-soft:rgba(190,46,27,0.08);--red-border:rgba(190,46,27,0.25);
+  --black:#000;--ink:#111;--ink-2:#444;--ink-3:#888;--rule:#e0dbd6;
+  --bg:#F7F4F1;--card:#fff;--warm:#F2EDE8;
+  --green:#1e6b35;--green-bg:#e8f4ec;
+  --amber:#966000;--amber-bg:#fdf3dc;
+  --blue:#1a4480;--blue-bg:#e8eef8;
+  --gold:#9a7b1f;--gold-bg:#fdf8ec;
+  --sans:'DM Sans',system-ui,sans-serif;
+  --serif:'Playfair Display',Georgia,serif;
+  --mono:'DM Mono',monospace;
+  --r:8px;--rl:12px;
+  --shadow:0 1px 4px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.04);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:15px;}
+body{font-family:var(--sans);background:var(--bg);color:var(--ink);min-height:100vh;}
+#auth-screen{position:fixed;inset:0;background:var(--black);display:flex;align-items:center;justify-content:center;z-index:1000;flex-direction:column;gap:20px;}
+#auth-screen.hidden{display:none;}
+.auth-card{background:var(--card);border-top:4px solid var(--red);border-radius:var(--rl);padding:2.5rem 2rem;width:100%;max-width:380px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.auth-logo{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.auth-sub{font-size:11px;color:var(--red);letter-spacing:.14em;text-transform:uppercase;font-weight:500;margin-bottom:2rem;}
+.auth-lbl{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px;text-align:left;}
+.auth-input{width:100%;border:1px solid var(--rule);border-radius:var(--r);padding:11px 14px;font-family:var(--sans);font-size:15px;background:var(--bg);color:var(--ink);margin-bottom:10px;text-align:center;letter-spacing:.12em;}
+.auth-input:focus{outline:none;border-color:var(--red);}
+.auth-btn{width:100%;background:var(--red);color:#fff;border:none;border-radius:var(--r);padding:12px;font-family:var(--sans);font-size:14px;font-weight:600;cursor:pointer;transition:background .15s;}
+.auth-btn:hover{background:var(--red-h);}
+.auth-err{font-size:13px;color:var(--red);margin-top:10px;min-height:18px;}
+.auth-verse{font-family:var(--serif);font-size:13px;color:#666;font-style:italic;text-align:center;max-width:340px;line-height:1.75;}
+#topbar{background:var(--black);color:#fff;height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;border-bottom:2px solid var(--red);position:sticky;top:0;z-index:200;}
+.tb-l{display:flex;align-items:center;gap:14px;}
+.tb-title{font-family:var(--serif);font-size:17px;font-weight:700;}
+.tb-sep{width:1px;height:18px;background:#333;}
+.tb-sub{font-size:11px;color:var(--red);letter-spacing:.1em;text-transform:uppercase;font-weight:500;}
+.tb-r{display:flex;align-items:center;gap:12px;}
+.tb-date{font-family:var(--mono);font-size:11px;color:#666;}
+.tb-lock{background:transparent;color:#555;border:1px solid #333;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);transition:all .15s;}
+.tb-lock:hover{border-color:#666;color:#aaa;}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#333;flex-shrink:0;transition:background .3s;}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite;}
+.sync-dot.synced{background:var(--green);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+#nav{background:var(--card);border-bottom:1px solid var(--rule);display:flex;align-items:center;padding:0 22px;position:sticky;top:50px;z-index:190;}
+.nt{font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:14px 16px 12px;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;user-select:none;}
+.nt:hover{color:var(--ink);}
+.nt.on{color:var(--red);border-bottom-color:var(--red);}
+#main{max-width:1000px;margin:0 auto;padding:26px 22px 80px;}
+.panel{display:none;animation:fade .25s ease;}
+.panel.on{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:none;}}
+.date-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
+.date-big{font-family:var(--serif);font-size:32px;font-weight:700;color:var(--ink);line-height:1.1;}
+.date-sub{font-size:13px;color:var(--ink-3);font-style:italic;margin-top:3px;}
+.day-nav{display:flex;gap:7px;}
+.day-nav button{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:7px 13px;font-family:var(--sans);font-size:13px;cursor:pointer;color:var(--ink-2);transition:all .15s;}
+.day-nav button:hover{border-color:var(--red);color:var(--red);}
+.day-nav button.today-btn{background:var(--red);color:#fff;border-color:var(--red);}
+.quote-card{background:var(--black);border-radius:var(--r);padding:16px 22px;margin-bottom:22px;display:flex;align-items:flex-start;gap:12px;position:relative;overflow:hidden;}
+.quote-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--red);}
+.qmark{font-family:var(--serif);font-size:52px;color:var(--red);line-height:.7;flex-shrink:0;margin-top:10px;opacity:.8;}
+.qbody{flex:1;}
+.qtext{font-family:var(--serif);font-size:14px;font-style:italic;color:#ccc;line-height:1.75;margin-bottom:6px;}
+.qattr{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.06em;}
+.sec-title{font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--red);margin-bottom:14px;padding-bottom:7px;border-bottom:1px solid var(--red-border);display:flex;align-items:center;justify-content:space-between;}
+.sec-count{color:var(--ink-3);font-weight:400;}
+.day-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;}
+@media(max-width:800px){.day-grid{grid-template-columns:1fr;}}
+.add-bar{display:flex;gap:7px;margin-bottom:12px;}
+.add-bar input{flex:1;border:1px solid var(--rule);border-radius:var(--r);padding:10px 12px;font-family:var(--sans);font-size:14px;background:var(--card);color:var(--ink);}
+.add-bar input:focus{outline:none;border-color:var(--red);}
+.add-bar button{background:var(--red);color:#fff;border:none;border-radius:var(--r);padding:10px 16px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;}
+.add-bar button:hover{background:var(--red-h);}
+.quick-row{display:flex;align-items:center;gap:7px;margin-bottom:14px;font-size:12px;color:var(--ink-3);cursor:pointer;user-select:none;}
+.quick-row input{accent-color:var(--red);cursor:pointer;}
+.todo-item{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;background:var(--card);border:1px solid var(--rule);border-radius:var(--r);margin-bottom:7px;transition:box-shadow .15s;}
+.todo-item:hover{box-shadow:var(--shadow);}
+.todo-item.starred{border-left:4px solid var(--gold);background:var(--gold-bg);}
+.todo-item.done-item{opacity:.5;}
+.todo-item.carried-item{border-left:4px solid var(--amber);}
+.tcheck{width:19px;height:19px;border:2px solid var(--rule);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;}
+.tcheck:hover{border-color:var(--green);}
+.todo-item.done-item .tcheck{background:var(--green);border-color:var(--green);}
+.todo-item.done-item .tcheck::after{content:'checkmark';font-size:11px;color:#fff;font-weight:700;content:'\2713';}
+.tbody{flex:1;min-width:0;}
+.ttext{font-size:14px;color:var(--ink);line-height:1.45;word-break:break-word;}
+.todo-item.done-item .ttext{text-decoration:line-through;color:var(--ink-3);}
+.tmeta{display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;}
+.ttag{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:20px;}
+.ttag.quick{background:var(--blue-bg);color:var(--blue);}
+.ttag.carried{background:var(--amber-bg);color:var(--amber);}
+.ttag.goal{background:var(--red-soft);color:var(--red);}
+.tactions{display:flex;gap:3px;flex-shrink:0;}
+.tbtn{background:none;border:none;cursor:pointer;font-size:15px;padding:3px 5px;border-radius:5px;transition:all .12s;line-height:1;color:var(--ink-3);}
+.tbtn:hover{background:var(--warm);}
+.tbtn.star-btn.on{color:var(--gold);}
+.tbtn.del-btn:hover{color:var(--red);}
+.pslot{display:flex;align-items:center;gap:12px;padding:13px 15px;background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--gold);border-radius:var(--r);margin-bottom:10px;min-height:56px;}
+.pslot.empty-slot{border-left-color:#ddd;border-style:dashed;background:transparent;}
+.pslot-num{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--gold);line-height:1;flex-shrink:0;width:24px;}
+.pslot.empty-slot .pslot-num{color:var(--ink-3);opacity:.35;}
+.pslot-text{flex:1;font-size:14px;color:var(--ink);line-height:1.4;}
+.pslot.empty-slot .pslot-text{color:var(--ink-3);font-style:italic;font-size:13px;}
+.pslot.done-p .pslot-text{text-decoration:line-through;color:var(--ink-3);}
+.pcheck{width:20px;height:20px;border:2px solid var(--rule);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.pcheck:hover{border-color:var(--green);}
+.pslot.done-p .pcheck{background:var(--green);border-color:var(--green);}
+.pslot.done-p .pcheck::after{content:'\2713';font-size:12px;color:#fff;font-weight:700;}
+.batch-card{background:var(--blue-bg);border:1px solid rgba(26,68,128,.18);border-radius:var(--r);padding:15px;}
+.batch-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.batch-title{font-size:13px;font-weight:600;color:var(--blue);}
+.batch-item{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid rgba(26,68,128,.1);font-size:13px;}
+.batch-item:last-of-type{border-bottom:none;}
+.bcheck{width:17px;height:17px;border:2px solid rgba(26,68,128,.3);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.batch-item.done-item .bcheck{background:var(--blue);border-color:var(--blue);}
+.batch-item.done-item .bcheck::after{content:'\2713';font-size:10px;color:#fff;font-weight:700;}
+.batch-item.done-item span{text-decoration:line-through;color:var(--ink-3);}
+.batch-all-btn{margin-top:10px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:7px 14px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;}
+.batch-all-btn:hover{background:#15356a;}
+.review-banner{background:var(--amber-bg);border:1px solid rgba(150,96,0,.22);border-radius:var(--r);padding:11px 14px;margin-bottom:18px;font-size:13px;color:var(--amber);display:none;align-items:center;gap:8px;}
+.empty-state{font-size:13px;color:var(--ink-3);font-style:italic;padding:1.5rem 0;text-align:center;}
+.goals-intro{font-size:13px;color:var(--ink-3);font-style:italic;margin-bottom:20px;line-height:1.65;border-left:3px solid var(--red-border);padding-left:12px;}
+.year-goal{background:var(--card);border:1px solid var(--rule);border-radius:var(--rl);margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden;}
+.year-head{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;background:var(--warm);border-bottom:1px solid var(--rule);}
+.year-num{font-family:var(--serif);font-size:22px;font-weight:700;color:var(--red);flex-shrink:0;line-height:1.2;min-width:26px;}
+.year-title-wrap{flex:1;}
+.year-title{font-family:var(--serif);font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;border:none;background:transparent;width:100%;resize:none;padding:0;}
+.year-title:focus{outline:none;}
+.year-acts{display:flex;gap:5px;flex-shrink:0;}
+.ibtn{background:none;border:1px solid transparent;cursor:pointer;font-size:14px;padding:5px 7px;border-radius:6px;color:var(--ink-3);transition:all .12s;line-height:1;}
+.ibtn:hover{background:var(--bg);color:var(--red);border-color:var(--red-border);}
+.q-section{padding:16px 18px;}
+.q-section.hidden{display:none;}
+.q-block{margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f0ebe6;}
+.q-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+.q-block-head{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}
+.q-badge{font-family:var(--mono);font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;flex-shrink:0;margin-top:2px;}
+.q-badge.q1{background:var(--blue-bg);color:var(--blue);}
+.q-badge.q2{background:var(--red-soft);color:var(--red);}
+.q-badge.q3{background:var(--green-bg);color:var(--green);}
+.q-badge.q4{background:var(--amber-bg);color:var(--amber);}
+.q-text{flex:1;font-size:14px;font-weight:500;color:var(--ink);line-height:1.45;border:none;background:transparent;width:100%;resize:none;padding:0;font-family:var(--sans);}
+.q-text:focus{outline:none;}
+.step-list{margin:0;list-style:none;}
+.step-item{display:flex;align-items:center;gap:9px;padding:9px 11px;background:var(--bg);border:1px solid var(--rule);border-radius:var(--r);margin-bottom:6px;font-size:13px;}
+.step-item.done-step{opacity:.5;}
+.scheck{width:17px;height:17px;border:2px solid var(--rule);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.step-item.done-step .scheck{background:var(--green);border-color:var(--green);}
+.step-item.done-step .scheck::after{content:'\2713';font-size:10px;color:#fff;font-weight:700;}
+.stext{flex:1;color:var(--ink-2);}
+.step-item.done-step .stext{text-decoration:line-through;color:var(--ink-3);}
+.sdue{font-family:var(--mono);font-size:11px;color:var(--ink-3);flex-shrink:0;}
+.sdue.overdue{color:var(--red);font-weight:500;}
+.sdue.soon{color:var(--amber);font-weight:500;}
+.sacts{display:flex;gap:3px;flex-shrink:0;}
+.sbtn{background:none;border:none;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:5px;color:var(--ink-3);transition:all .12s;line-height:1;}
+.sbtn:hover{background:var(--card);}
+.sbtn.to-today{color:var(--gold);}
+.sbtn.to-today:hover{background:var(--gold-bg);}
+.sbtn.to-today.added{color:var(--green);}
+.sbtn.del-s:hover{color:var(--red);}
+.add-step-row{display:flex;gap:6px;margin-top:8px;}
+.add-step-row input{border:1px solid var(--rule);border-radius:var(--r);padding:7px 10px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink);}
+.add-step-row input.sname{flex:1;}
+.add-step-row input.sdate{width:140px;font-family:var(--mono);font-size:12px;}
+.add-step-row input:focus{outline:none;border-color:var(--red);}
+.add-step-row button{background:var(--ink);color:#fff;border:none;border-radius:var(--r);padding:7px 12px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.add-step-row button:hover{background:#333;}
+.add-q-row{display:flex;gap:6px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--rule);}
+.add-q-row select,.add-q-row input{border:1px solid var(--rule);border-radius:var(--r);padding:7px 10px;font-family:var(--sans);font-size:13px;background:var(--card);color:var(--ink);}
+.add-q-row select{width:80px;flex-shrink:0;}
+.add-q-row input{flex:1;}
+.add-q-row input:focus,.add-q-row select:focus{outline:none;border-color:var(--red);}
+.add-q-row button{background:var(--red);color:#fff;border:none;border-radius:var(--r);padding:7px 14px;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.add-q-row button:hover{background:var(--red-h);}
+.add-year-bar{display:flex;gap:8px;margin-top:10px;}
+.add-year-bar input{flex:1;border:1px solid var(--rule);border-radius:var(--r);padding:12px 14px;font-family:var(--serif);font-size:15px;background:var(--card);color:var(--ink);}
+.add-year-bar input:focus{outline:none;border-color:var(--red);}
+.add-year-bar button{background:var(--red);color:#fff;border:none;border-radius:var(--r);padding:12px 18px;font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.add-year-bar button:hover{background:var(--red-h);}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">Daily Dashboard</div>
+    <div class="auth-sub">David Bishop</div>
+    <div class="auth-lbl">Password</div>
+    <input id="pw-input" type="password" class="auth-input" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="off" onkeydown="if(event.key==='Enter')tryLogin()">
+    <button class="auth-btn" onclick="tryLogin()">Enter</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+  <div class="auth-verse">"Commit your work to the Lord, and your plans will be established." &mdash; Proverbs 16:3</div>
+</div>
+
+<div id="topbar">
+  <div class="tb-l">
+    <div class="tb-title">Daily Dashboard</div>
+    <div class="tb-sep"></div>
+    <div class="tb-sub">David Bishop</div>
+  </div>
+  <div class="tb-r">
+    <div class="sync-dot" id="sync-dot"></div>
+    <div class="tb-date" id="tb-date"></div>
+    <button class="tb-lock" onclick="signOut()">Lock</button>
+  </div>
+</div>
+
+<div id="nav">
+  <div class="nt on" onclick="go('today')">Today</div>
+  <div class="nt" onclick="go('goals')">Goals</div>
+</div>
+
+<div id="main">
+  <div id="panel-today" class="panel on">
+    <div class="date-head">
+      <div>
+        <div class="date-big" id="date-big">---</div>
+        <div class="date-sub" id="date-sub"></div>
+      </div>
+      <div class="day-nav">
+        <button onclick="shiftDay(-1)">&larr; Prev</button>
+        <button class="today-btn" onclick="goTodayDate()">Today</button>
+        <button onclick="shiftDay(1)">Next &rarr;</button>
+      </div>
+    </div>
+    <div class="quote-card" id="quote-card"></div>
+    <div class="review-banner" id="review-banner"></div>
+    <div class="day-grid">
+      <div>
+        <div class="sec-title">To-Do List <span class="sec-count" id="todo-count"></span></div>
+        <div class="add-bar">
+          <input id="todo-input" type="text" placeholder="Add a to-do..." onkeydown="if(event.key==='Enter')addTodo()">
+          <button onclick="addTodo()">+ Add</button>
+        </div>
+        <label class="quick-row">
+          <input type="checkbox" id="quick-flag"> Mark as quick task (5 min or less)
+        </label>
+        <div id="todo-list"></div>
+      </div>
+      <div>
+        <div class="sec-title">Top 3 Priorities</div>
+        <div id="priority-slots"></div>
+        <div style="font-size:12px;color:var(--ink-3);font-style:italic;margin-bottom:22px;line-height:1.5;">Star up to three to-dos to commit them as today's priorities.</div>
+        <div class="sec-title">Quick Batch <span class="sec-count" id="batch-count"></span></div>
+        <div id="batch-area"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-goals" class="panel">
+    <div class="date-head" style="margin-bottom:18px;">
+      <div>
+        <div class="date-big">Goals</div>
+        <div class="date-sub">2026 &mdash; Partner Care Department</div>
+      </div>
+    </div>
+    <div class="goals-intro">Each yearly goal breaks into quarterly milestones. Add action steps with due dates. Send any step to today with the &#9733; button &mdash; then star it as a priority.</div>
+    <div id="year-goals-list"></div>
+    <div class="add-year-bar">
+      <input id="new-year-goal" type="text" placeholder="Add a new yearly goal..." onkeydown="if(event.key==='Enter')addYearGoal()">
+      <button onclick="addYearGoal()">+ Add Yearly Goal</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FC = {
+  apiKey:"AIzaSyBRpjXT0TPZHAa6uYJD6jMb-lGnPfQRw1U",
+  authDomain:"heartcry-hud.firebaseapp.com",
+  projectId:"heartcry-hud",
+  storageBucket:"heartcry-hud.firebasestorage.app",
+  messagingSenderId:"148540702480",
+  appId:"1:148540702480:web:58c636fde3b8fc345a6f95"
+};
+const fbApp = initializeApp(FC, "dashboard");
+const db = getFirestore(fbApp);
+const UID = "david_bishop_pc";
+const PW = "HMS*managerHUD$8";
+
+const QUOTES = [
+  {t:"So shall I fulfil the great end of my being — to glorify thee and be a blessing to men.",a:"Valley of Vision"},
+  {t:"God is the highest good of the reasonable creature; and the enjoyment of him is the only happiness with which our souls can be satisfied.",a:"Jonathan Edwards"},
+  {t:"The pursuit of holiness requires sustained and vigorous effort. It allows for no indolence, no lethargy, no halfhearted commitment.",a:"Jerry Bridges"},
+  {t:"Not the simple reading of the word of God, so that it only passes through our minds, just as water runs through a pipe, but considering what we read, pondering over it, and applying it to our hearts.",a:"George Mueller"},
+  {t:"A man's needs are few. The simpler the life, the better. Only three things are truly necessary: the blessing of God, the benefit of books, and the benevolence of friends.",a:"Thomas Chalmers"},
+  {t:"What I have spoken is to encourage faith, not indulge sloth. Do not think God will do our work for us while we sit still.",a:"Thomas Watson"},
+  {t:"Let your Christianity be so unmistakable, your eye so single, your heart so whole, that all who see you may have no doubt whose you are, and whom you serve.",a:"J.C. Ryle"},
+  {t:"The men who have done the most for God in this world have been early on their knees. If God is not first in our thoughts and efforts in the morning, He will be in the last place the remainder of the day.",a:"E.M. Bounds"},
+  {t:"You can't wish for a strong character and an easy life. For the cost of both is the other.",a:""},
+  {t:"We don't rise to the standards we have when others are watching — we fall to the standards we have when no one is watching.",a:""},
+  {t:"The most successful people I've ever seen in life are those who see the shining of the blessing of God on the day-to-day circumstances of life.",a:"Alistair Begg"},
+  {t:"You will either become who you were meant to be, or spend your life explaining why you didn't.",a:""},
+  {t:"Success is often found by practicing the fundamentals everyone knows they should be doing, but find too boring or basic to practice routinely.",a:""},
+  {t:"The ultimate form of preparation is not planning for a specific scenario, but a mindset that can handle uncertainty.",a:""},
+  {t:"Mastery is the best goal because the rich can't buy it, the impatient can't rush it, the privileged can't inherit it, and nobody can steal it.",a:"Derek Silvers"},
+  {t:"I have but one candle to burn and would rather burn it in a dark place than one filled with light.",a:""},
+  {t:"Small choices quietly reshape our habits. Shortcuts change more than just the journey. They change us.",a:"Farnam Street"},
+  {t:"Who you are is defined by the values you are willing to struggle for.",a:""},
+  {t:"If you learn to use it right, the adversity will buy you a ticket to a place you couldn't have gone any other way.",a:""},
+  {t:"You don't need more intensity. You need more consistency. Intensity impresses, consistency transforms.",a:""},
+  {t:"Discipline is the strongest form of self love. It's ignoring what you want now for something better later on.",a:""},
+  {t:"Be ruthless about what you ignore. Time, energy, and resources are precious. Be ferocious about cutting your priorities.",a:""},
+  {t:"Where are you accepting good because you're afraid to tolerate the uncertainty necessary to reach great?",a:""},
+  {t:"If you don't give your life a direction, the world will give it a distraction.",a:""},
+  {t:"Your standards decide your future.",a:""},
+  {t:"Consistently boring days make for extraordinary decades.",a:""},
+  {t:"Growth comes at the point of resistance. We learn by pushing ourselves and finding what really lies at the outer reaches of our abilities.",a:"Josh Waitzkin"},
+  {t:"Integrity is choosing courage over comfort; choosing what is right over what is fun, fast, or easy.",a:"Brene Brown"},
+  {t:"The price of success is paid in private. Visible triumphs are built on invisible work.",a:"Shane Parrish"},
+  {t:"The results you are looking for are in the work you are avoiding.",a:""},
+  {t:"Most people don't lack talent, but the consistency to be successful.",a:"Jake Thompson"},
+  {t:"Simplicity is the ultimate form of sophistication.",a:"Leonardo da Vinci"},
+  {t:"In practice, consistency is about being adaptable. Let your habits change shape to meet the demands of the day. Adaptability is the way of consistency.",a:"James Clear"},
+  {t:"Things which matter most must never be at the mercy of things which matter least.",a:"Goethe"},
+  {t:"Endurance is patience concentrated.",a:"Thomas Carlyle"},
+  {t:"People who consistently get better results organize their lives so they are never forced by circumstances into a bad decision.",a:""},
+  {t:"I demand more from myself every day than anyone else could possibly expect of me. I don't compete with other people. I compete with what I am capable of.",a:"Michael Jordan"},
+  {t:"The courage to start. The discipline to focus. The confidence to figure it out. The patience to know progress is not always visible. The persistence to keep going, even on the bad days.",a:""},
+  {t:"Stewardship isn't a subcategory of the Christian life. Stewardship is the Christian life.",a:"Randy Alcorn"},
+  {t:"Productivity is effectively stewarding my gifts, talents, time, energy, and enthusiasm for the good of others and the glory of God.",a:"Challies"},
+  {t:"The harder the conflict, the more glorious the triumph. What we obtain too cheap, we esteem too lightly.",a:"Thomas Paine"},
+  {t:"It's the days when the body aches, the motivation isn't there, you're too tired — those are the days when champions train.",a:"Jocko"},
+  {t:"One's philosophy is not best expressed in words; it is expressed in the choices one makes.",a:"Eleanor Roosevelt"},
+  {t:"The most difficult thing is the decision to act. The rest is merely tenacity.",a:"Amelia Earhart"},
+  {t:"Life is never made unbearable by circumstances, but only by a lack of meaning and purpose.",a:"Viktor Frankl"},
+  {t:"Legacy is not leaving something for people. It's leaving something in people.",a:"Peter Strople"},
+  {t:"A good character is the best tombstone. Carve your name on hearts, not on marble.",a:"Charles H. Spurgeon"},
+  {t:"To each there comes a special moment when they are tapped on the shoulder and offered the chance to do a very special thing. What a tragedy if that moment finds them unprepared.",a:"Winston Churchill"},
+  {t:"Power is influence over external events. Peace is influence over internal events.",a:"James Clear"},
+  {t:"Good choices create opportunities. Good habits make the most of them.",a:"James Clear"},
+  {t:"Consistency before intensity. Start small and become the kind of person who shows up every day. Build a new identity. Then increase the intensity.",a:"James Clear"},
+  {t:"The real work of productivity is concentrating all your energy on the few things that matter.",a:""},
+  {t:"You must maintain unwavering faith that you will prevail, and at the same time have the discipline to confront the most brutal facts of your current reality.",a:"Stockdale Paradox"},
+  {t:"Excuses make today easy, but tomorrow harder. Discipline makes today hard, but tomorrow easier.",a:"Proactive Coaching"},
+  {t:"Success is the comparison with people around you. Excellence is a comparison with your former self.",a:""},
+  {t:"Sometimes all you need for exceptional results is average effort repeated for an above-average amount of time.",a:"James Clear"},
+  {t:"The purpose of life is to find the mode of being that is so meaningful that the fact that life is suffering is no longer relevant.",a:"J. Peterson"},
+  {t:"The antidote to busyness of soul is rest, rhythm, death to pride, acceptance of our own finitude, and trust in the providence of God.",a:"Kevin DeYoung"},
+  {t:"Obstacles are the cost of greatness.",a:""},
+  {t:"Luck is where opportunity meets preparation.",a:"Seneca"},
+  {t:"The person who carefully designs their daily routine goes further than the person that negotiates with themselves every day.",a:""},
+  {t:"The tasks that have the greatest likelihood of derailing your progress are the ones you care about, but that aren't truly important.",a:"James Clear"},
+  {t:"You just need to have the courage to eliminate everything that doesn't directly feed what you really want.",a:"James Clear"},
+  {t:"Fear has killed more dreams than failure. Go for it and don't look back.",a:""},
+  {t:"The best your house looks should not be the day you sell it. You are worth that condition.",a:"David Bishop"},
+  {t:"Give a man a purpose and the ability to achieve it and he will crawl over broken glass with a smile.",a:""},
+  {t:"Those who are enlightened never stop forging themselves.",a:"Ueshiba Morihei"},
+  {t:"When a person can't find a deep sense of meaning, they distract themselves with pleasure.",a:"Viktor Frankl"},
+  {t:"Be a voice, not an echo.",a:""},
+  {t:"Knowledge is never enough. Applied knowledge is power.",a:""},
+  {t:"SISU — a white-knuckled form of courage and unimaginable determination.",a:"Finnish"},
+  {t:"Non Desistas Non Exieris — Never give up, never surrender.",a:""},
+  {t:"Orient yourself towards the greatest good you can conceive of and pursue it.",a:"J. Peterson"},
+  {t:"Character — the willingness to accept responsibility for one's own life — is the source from which self-respect springs.",a:"Joan Didion"},
+  {t:"Run to win. All that you have between the beginning and the end is a gift of God's grace. That simple line on your tombstone will represent the time given to you.",a:"Challies"},
+  {t:"To be stronger, God must give me difficulties that require me to grow stronger. To be wiser, I need more problems to solve. To be more loving, I need more people harder to love.",a:""},
+  {t:"Arrogance is loud. It comes from insecurity. Confidence is quiet. It comes from evidence.",a:""},
+  {t:"The first mistake rarely proves disastrous, but the downward spiral of the second, third, and fourth error creates a devastating chain reaction.",a:"Josh Waitzkin"},
+  {t:"Godly habits lead to Godly character. Godly character leads to Godly actions. And Godly actions lead to true happiness.",a:""},
+  {t:"We have five choices: be bad, average, good, excellent, or elite. But if you're going to be excellent or elite, you have to do special things. You have to have a high standard all the time.",a:"Nick Saban"},
+  {t:"The price of anything is the amount of life you exchange for it.",a:"Henry David Thoreau"},
+  {t:"If your aspirations are different from everyone else, your life should look different. You need to live in a way that demands explanation.",a:""},
+  {t:"To be God-centered is to make God the source of your guidance, security, and meaning. It is to make his glory the chief aim of your life.",a:""},
+  {t:"The lag time between excellence in action and outcome is sometimes significant — more than many are willing to tolerate.",a:""},
+  {t:"Full hands in, full hands out. Stay vigilant. Never waste a trip.",a:"Restaurant maxim"}
+];
+
+const DEFAULT_GOALS = [
+  {id:'y1',text:'Steward partner relationships with warmth, clarity, and faithfulness',quarterly:[
+    {id:'q1a',q:'Q2',text:'Implement consistent relational care rhythm across all donor churches',steps:[]},
+    {id:'q1b',q:'Q3',text:'Launch quarterly relational review report for leadership',steps:[]},
+  ]},
+  {id:'y2',text:'Establish consistent, trustworthy communication across all channels',quarterly:[
+    {id:'q2a',q:'Q2',text:'All communication standards in live use across channels',steps:[]},
+    {id:'q2b',q:'Q2',text:'Editorial calendar finalized and active',steps:[]},
+  ]},
+  {id:'y3',text:'Build durable systems — people, processes, infrastructure',quarterly:[
+    {id:'q3a',q:'Q2',text:'Core processes documented for all key deliverables',steps:[]},
+    {id:'q3b',q:'Q2',text:'CRM transition to Zoho progressing with Robert',steps:[]},
+    {id:'q3c',q:'Q3',text:'New staff onboarding process established',steps:[]},
+  ]},
+  {id:'y4',text:'Increase capacity without sacrificing doctrinal integrity or quality',quarterly:[
+    {id:'q4a',q:'Q2',text:'Media Hub fully utilized for intake and gap identification',steps:[]},
+    {id:'q4b',q:'Q3',text:'Role-specific training delivered for each team member',steps:[]},
+  ]},
+  {id:'y5',text:'Protect and organize HeartCry content for long-term use',quarterly:[
+    {id:'q5a',q:'Q2',text:'Content security and field sensitivity protocol documented',steps:[]},
+    {id:'q5b',q:'Q3',text:'Photo and film archive categorization complete',steps:[]},
+  ]},
+];
+
+let S = { days:{}, yearGoals:JSON.parse(JSON.stringify(DEFAULT_GOALS)), quoteOrder:[] };
+let dayOffset=0, saveTimer=null, unsub=null;
+
+window.tryLogin = () => {
+  const v=document.getElementById("pw-input").value;
+  const e=document.getElementById("auth-err");
+  if(v===PW){ localStorage.setItem("dd_fb_authed","yes"); document.getElementById("auth-screen").classList.add("hidden"); startApp(); }
+  else { e.textContent="Incorrect password."; document.getElementById("pw-input").value=""; setTimeout(()=>e.textContent="",3000); }
+};
+window.signOut = () => { localStorage.removeItem("dd_fb_authed"); document.getElementById("auth-screen").classList.remove("hidden"); document.getElementById("pw-input").value=""; if(unsub)unsub(); };
+
+function setSyncing(st){ const d=document.getElementById("sync-dot"); d.className="sync-dot"+(st?" "+st:""); }
+let saveDebounce=null;
+async function scheduleSave(){ clearTimeout(saveDebounce); saveDebounce=setTimeout(async()=>{ setSyncing("syncing"); try{ await setDoc(doc(db,"users",UID,"dashboard","state"),S,{merge:true}); setSyncing("synced"); setTimeout(()=>setSyncing(""),3000); }catch(e){setSyncing("");} },900); }
+
+function shuffleArr(n){ const a=Array.from({length:n},(_,i)=>i); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function startApp(){
+  updateTopDate(); setInterval(updateTopDate,60000);
+  const ref=doc(db,"users",UID,"dashboard","state");
+  unsub=onSnapshot(ref,snap=>{
+    if(snap.exists()){ const d=snap.data(); if(d.days)S.days=d.days; if(d.yearGoals)S.yearGoals=d.yearGoals; if(d.quoteOrder)S.quoteOrder=d.quoteOrder; }
+    if(!S.quoteOrder||S.quoteOrder.length!==QUOTES.length){ S.quoteOrder=shuffleArr(QUOTES.length); scheduleSave(); }
+    renderAll();
+  });
+}
+
+function updateTopDate(){ document.getElementById("tb-date").textContent=new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"}); }
+
+function dateKey(off){ const d=new Date(); d.setDate(d.getDate()+off); return d.toISOString().slice(0,10); }
+function fmtBig(off){ const d=new Date(); d.setDate(d.getDate()+off); return d.toLocaleDateString("en-US",{weekday:"long"}); }
+function fmtSub(off){ const d=new Date(); d.setDate(d.getDate()+off); d.setHours(0,0,0,0); const t=new Date(); t.setHours(0,0,0,0); const diff=Math.round((d-t)/86400000); const base=d.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}); if(diff===0)return"Today · "+base; if(diff===-1)return"Yesterday · "+base; if(diff===1)return"Tomorrow · "+base; return base; }
+
+function getQuote(dk){ const d=new Date(dk+"T00:00:00"); const doy=Math.floor((d-new Date(d.getFullYear(),0,0))/86400000); const idx=S.quoteOrder[doy%S.quoteOrder.length]; return QUOTES[idx]||QUOTES[0]; }
+
+function ensureDay(k){ if(!S.days[k])S.days[k]={items:[],carriedFrom:null}; if(!S.days[k].items)S.days[k].items=[]; return S.days[k]; }
+
+function carryForward(){ const ck=dateKey(dayOffset),pk=dateKey(dayOffset-1); ensureDay(ck); const prev=S.days[pk]; if(!prev||!prev.items)return; if(S.days[ck].carriedFrom===pk)return; const existing=S.days[ck].items.map(t=>t.text); prev.items.forEach(item=>{ if(!item.done&&!existing.includes(item.text)){ S.days[ck].items.push({id:'td'+Date.now()+Math.random().toString(36).slice(2,5),text:item.text,done:false,starred:false,quick:item.quick||false,fromGoal:item.fromGoal||null,carried:true}); } }); S.days[ck].carriedFrom=pk; scheduleSave(); }
+
+window.addTodo=()=>{ const input=document.getElementById("todo-input"),text=input.value.trim(); if(!text)return; const quick=document.getElementById("quick-flag").checked,ck=dateKey(dayOffset); ensureDay(ck); S.days[ck].items.push({id:'td'+Date.now(),text,done:false,starred:false,quick,fromGoal:null,carried:false}); input.value=""; document.getElementById("quick-flag").checked=false; scheduleSave(); renderToday(); };
+window.toggleTodo=(id)=>{ const ck=dateKey(dayOffset),item=S.days[ck]&&S.days[ck].items.find(t=>t.id===id); if(item){item.done=!item.done;scheduleSave();renderToday();} };
+window.toggleStar=(id)=>{ const ck=dateKey(dayOffset),items=S.days[ck]&&S.days[ck].items||[],item=items.find(t=>t.id===id); if(!item)return; if(!item.starred&&items.filter(t=>t.starred).length>=3){alert("You already have 3 priorities. Unstar one first.");return;} item.starred=!item.starred; scheduleSave();renderToday(); };
+window.delTodo=(id)=>{ const ck=dateKey(dayOffset); if(S.days[ck])S.days[ck].items=S.days[ck].items.filter(t=>t.id!==id); scheduleSave();renderToday(); };
+window.batchAll=()=>{ const ck=dateKey(dayOffset); if(S.days[ck])S.days[ck].items.forEach(t=>{if(t.quick)t.done=true;}); scheduleSave();renderToday(); };
+
+function renderToday(){
+  carryForward();
+  document.getElementById("date-big").textContent=fmtBig(dayOffset);
+  document.getElementById("date-sub").textContent=fmtSub(dayOffset);
+  const q=getQuote(dateKey(dayOffset));
+  document.getElementById("quote-card").innerHTML='<div class="qmark">&ldquo;</div><div class="qbody"><div class="qtext">'+esc(q.t)+'</div>'+(q.a?'<div class="qattr">&mdash; '+esc(q.a)+'</div>':'')+'</div>';
+  const ck=dateKey(dayOffset),day=ensureDay(ck),items=day.items||[];
+  const carried=items.filter(t=>t.carried&&!t.done);
+  const rb=document.getElementById("review-banner");
+  if(carried.length){rb.style.display="flex";rb.innerHTML='&#x23ED; '+carried.length+' item'+(carried.length>1?'s':'')+' carried from yesterday. Re-star your top 3 and add anything new.';}
+  else{rb.style.display="none";}
+  document.getElementById("todo-count").textContent=items.filter(t=>!t.done).length+" open";
+  const mainItems=items.filter(t=>!t.quick),quickItems=items.filter(t=>t.quick);
+  const listEl=document.getElementById("todo-list");
+  if(!mainItems.length){listEl.innerHTML='<div class="empty-state">No to-dos yet. Add your first one above.</div>';}
+  else{
+    const sorted=[...mainItems].sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;if(a.starred!==b.starred)return a.starred?-1:1;return 0;});
+    listEl.innerHTML=sorted.map(t=>'<div class="todo-item'+(t.done?' done-item':'')+(t.starred&&!t.done?' starred':'')+(t.carried&&!t.done?' carried-item':'')+'"><div class="tcheck" onclick="toggleTodo(\''+t.id+'\')"></div><div class="tbody"><div class="ttext">'+esc(t.text)+'</div>'+((t.carried&&!t.done)||t.fromGoal?'<div class="tmeta">'+(t.fromGoal?'<span class="ttag goal">Goal Step</span>':'')+(t.carried&&!t.done?'<span class="ttag carried">Carried over</span>':'')+'</div>':'')+'</div><div class="tactions"><button class="tbtn star-btn'+(t.starred?' on':'')+'" onclick="toggleStar(\''+t.id+'\')">'+(t.starred?'&#9733;':'&#9734;')+'</button><button class="tbtn del-btn" onclick="delTodo(\''+t.id+'\')">&#215;</button></div></div>').join('');
+  }
+  const allStarred=items.filter(t=>t.starred);
+  let ph='';
+  for(let i=0;i<3;i++){const p=allStarred[i];if(p){ph+='<div class="pslot'+(p.done?' done-p':'')+'"><div class="pslot-num">'+(i+1)+'</div><div class="pcheck" onclick="toggleTodo(\''+p.id+'\')"></div><div class="pslot-text">'+esc(p.text)+'</div></div>';}else{ph+='<div class="pslot empty-slot"><div class="pslot-num">'+(i+1)+'</div><div class="pslot-text">Star a to-do to fill this slot</div></div>';}}
+  document.getElementById("priority-slots").innerHTML=ph;
+  const openQ=quickItems.filter(t=>!t.done).length;
+  document.getElementById("batch-count").textContent=quickItems.length?openQ+" open":'';
+  const batchEl=document.getElementById("batch-area");
+  if(!quickItems.length){batchEl.innerHTML='<div class="empty-state" style="padding:.75rem 0;">No quick tasks. Check the quick box when adding a 5-min task.</div>';}
+  else{batchEl.innerHTML='<div class="batch-card"><div class="batch-head"><div class="batch-title">&#9889; 5-Minute Tasks</div></div>'+quickItems.map(t=>'<div class="batch-item'+(t.done?' done-item':'')+'"><div class="bcheck" onclick="toggleTodo(\''+t.id+'\')"></div><span style="flex:1;">'+esc(t.text)+'</span><button class="tbtn del-btn" onclick="delTodo(\''+t.id+'\')">&#215;</button></div>').join('')+(openQ>1?'<button class="batch-all-btn" onclick="batchAll()">&#10003; Complete All '+openQ+'</button>':'')+'</div>';}
+}
+
+function dueInfo(due){if(!due)return{cls:'',label:''};const d=new Date(due+'T00:00:00');d.setHours(0,0,0,0);const t=new Date();t.setHours(0,0,0,0);const diff=Math.round((d-t)/86400000);const label=d.toLocaleDateString("en-US",{month:'short',day:'numeric'});if(diff<0)return{cls:'overdue',label:'&#9888; '+label};if(diff<=7)return{cls:'soon',label};return{cls:'',label};}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function isOnToday(sid){const ck=dateKey(dayOffset);return S.days[ck]&&S.days[ck].items&&S.days[ck].items.some(t=>t.fromGoal===sid&&!t.done);}
+
+function renderGoals(){
+  document.getElementById("year-goals-list").innerHTML=S.yearGoals.map((yg,yi)=>'<div class="year-goal"><div class="year-head"><div class="year-num">'+(yi+1)+'</div><div class="year-title-wrap"><textarea class="year-title" rows="2" onblur="editYear(\''+yg.id+'\',this.value)">'+esc(yg.text)+'</textarea></div><div class="year-acts"><button class="ibtn" onclick="collapseYear(\''+yg.id+'\')">&#9662;</button><button class="ibtn" onclick="delYear(\''+yg.id+'\')">&#215;</button></div></div><div class="q-section" id="qs-'+yg.id+'">'+(yg.quarterly||[]).map(q=>'<div class="q-block"><div class="q-block-head"><span class="q-badge '+q.q.toLowerCase()+'">'+q.q+'</span><textarea class="q-text" rows="2" onblur="editQ(\''+yg.id+'\',\''+q.id+'\',this.value)">'+esc(q.text)+'</textarea><button class="ibtn" onclick="delQ(\''+yg.id+'\',\''+q.id+'\')">&#215;</button></div><ul class="step-list">'+(q.steps||[]).map(s=>{const di=dueInfo(s.due);const onT=isOnToday(s.id);return'<li class="step-item'+(s.done?' done-step':'')+'"><div class="scheck" onclick="toggleStep(\''+yg.id+'\',\''+q.id+'\',\''+s.id+'\')"></div><div class="stext">'+esc(s.text)+'</div>'+(s.due?'<div class="sdue '+di.cls+'">'+di.label+'</div>':'')+'<div class="sacts"><button class="sbtn to-today'+(onT?' added':'')+'" onclick="sendToToday(\''+yg.id+'\',\''+q.id+'\',\''+s.id+'\')">'+(onT?'&#10003;':'&#9733;')+'</button><button class="sbtn del-s" onclick="delStep(\''+yg.id+'\',\''+q.id+'\',\''+s.id+'\')">&#215;</button></div></li>';}).join('')+'</ul><div class="add-step-row"><input class="sname" type="text" id="sn-'+q.id+'" placeholder="Add an action step..."><input class="sdate" type="date" id="sd-'+q.id+'"><button onclick="addStep(\''+yg.id+'\',\''+q.id+'\')">+ Step</button></div></div>').join('')+'<div class="add-q-row"><select id="nq-q-'+yg.id+'"><option value="Q1">Q1</option><option value="Q2" selected>Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select><input type="text" id="nq-t-'+yg.id+'" placeholder="Add a quarterly milestone..."><button onclick="addQ(\''+yg.id+'\')">+ Milestone</button></div></div></div>').join('');
+}
+
+window.collapseYear=(id)=>{document.getElementById("qs-"+id).classList.toggle("hidden");};
+window.editYear=(id,text)=>{const g=S.yearGoals.find(y=>y.id===id);if(g){g.text=text.trim();scheduleSave();}};
+window.delYear=(id)=>{if(!confirm("Delete this yearly goal?"))return;S.yearGoals=S.yearGoals.filter(y=>y.id!==id);scheduleSave();renderGoals();};
+window.addYearGoal=()=>{const input=document.getElementById("new-year-goal"),text=input.value.trim();if(!text)return;S.yearGoals.push({id:'y'+Date.now(),text,quarterly:[]});input.value="";scheduleSave();renderGoals();};
+window.editQ=(yid,qid,text)=>{const g=S.yearGoals.find(y=>y.id===yid),q=g&&g.quarterly.find(x=>x.id===qid);if(q){q.text=text.trim();scheduleSave();}};
+window.delQ=(yid,qid)=>{if(!confirm("Delete this milestone?"))return;const g=S.yearGoals.find(y=>y.id===yid);if(g){g.quarterly=g.quarterly.filter(x=>x.id!==qid);scheduleSave();renderGoals();}};
+window.addQ=(yid)=>{const q=document.getElementById("nq-q-"+yid).value,text=document.getElementById("nq-t-"+yid).value.trim();if(!text)return;const g=S.yearGoals.find(y=>y.id===yid);if(!g)return;if(!g.quarterly)g.quarterly=[];g.quarterly.push({id:'q'+Date.now(),q,text,steps:[]});scheduleSave();renderGoals();};
+window.addStep=(yid,qid)=>{const name=document.getElementById("sn-"+qid).value.trim();if(!name)return;const due=document.getElementById("sd-"+qid).value;const g=S.yearGoals.find(y=>y.id===yid),q=g&&g.quarterly.find(x=>x.id===qid);if(!q)return;if(!q.steps)q.steps=[];q.steps.push({id:'s'+Date.now(),text:name,due:due||'',done:false});scheduleSave();renderGoals();};
+window.toggleStep=(yid,qid,sid)=>{const g=S.yearGoals.find(y=>y.id===yid),q=g&&g.quarterly.find(x=>x.id===qid),s=q&&q.steps.find(x=>x.id===sid);if(s){s.done=!s.done;scheduleSave();renderGoals();}};
+window.delStep=(yid,qid,sid)=>{const g=S.yearGoals.find(y=>y.id===yid),q=g&&g.quarterly.find(x=>x.id===qid);if(!q)return;q.steps=q.steps.filter(x=>x.id!==sid);scheduleSave();renderGoals();};
+window.sendToToday=(yid,qid,sid)=>{const g=S.yearGoals.find(y=>y.id===yid),q=g&&g.quarterly.find(x=>x.id===qid),s=q&&q.steps.find(x=>x.id===sid);if(!s)return;const ck=dateKey(dayOffset);ensureDay(ck);const existing=S.days[ck].items.find(t=>t.fromGoal===sid&&!t.done);if(existing){S.days[ck].items=S.days[ck].items.filter(t=>!(t.fromGoal===sid&&!t.done));}else{S.days[ck].items.push({id:'td'+Date.now(),text:s.text,done:false,starred:false,quick:false,fromGoal:sid,carried:false});}scheduleSave();renderGoals();renderToday();};
+
+const TABS=['today','goals'];
+window.shiftDay=(d)=>{dayOffset+=d;renderToday();};
+window.goTodayDate=()=>{dayOffset=0;renderToday();};
+window.go=(tab)=>{document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));document.querySelectorAll('.nt').forEach(n=>n.classList.remove('on'));document.getElementById('panel-'+tab).classList.add('on');document.querySelectorAll('.nt')[TABS.indexOf(tab)].classList.add('on');if(tab==='today')renderToday();if(tab==='goals')renderGoals();};
+function renderAll(){renderToday();renderGoals();}
+document.addEventListener("keydown",e=>{if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;if(document.getElementById("panel-today").classList.contains("on")){if(e.key==="ArrowLeft")shiftDay(-1);if(e.key==="ArrowRight")shiftDay(1);}});
+
+if(localStorage.getItem("dd_fb_authed")==="yes"){document.getElementById("auth-screen").classList.add("hidden");startApp();}
+</script>
+</body>
+</html>
