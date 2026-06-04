@@ -414,18 +414,55 @@ window.signOut = () => { localStorage.removeItem("dd_fb_authed"); document.getEl
 
 function setSyncing(st){ const d=document.getElementById("sync-dot"); d.className="sync-dot"+(st?" "+st:""); }
 let saveDebounce=null;
-async function scheduleSave(){ clearTimeout(saveDebounce); saveDebounce=setTimeout(async()=>{ setSyncing("syncing"); try{ await setDoc(doc(db,"users",UID,"dashboard","state"),S,{merge:true}); setSyncing("synced"); setTimeout(()=>setSyncing(""),3000); }catch(e){setSyncing("");} },900); }
+async function scheduleSave(){
+  clearTimeout(saveDebounce);
+  saveDebounce=setTimeout(async()=>{
+    setSyncing("syncing");
+    try{
+      await setDoc(doc(db,"users",UID,"dashboard","state"),S,{merge:true});
+      setSyncing("synced");
+      setTimeout(()=>setSyncing(""),3000);
+    } catch(e){
+      setSyncing("");
+      console.error("Save failed:",e);
+      // Show error
+      let errEl=document.getElementById("dd-err");
+      if(!errEl){errEl=document.createElement("div");errEl.id="dd-err";errEl.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#a32d2d;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:500;text-align:center;";document.body.appendChild(errEl);}
+      errEl.textContent="Save failed — check your internet connection.";
+      setTimeout(()=>{if(errEl.parentNode)errEl.remove();},5000);
+    }
+  },900);
+}
 
 function shuffleArr(n){ const a=Array.from({length:n},(_,i)=>i); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 
+function showLoader(msg){
+  let el=document.getElementById("dd-loader");
+  if(!el){el=document.createElement("div");el.id="dd-loader";el.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;";el.innerHTML='<div style="background:#fff;border-radius:12px;padding:28px 36px;text-align:center;"><div style="font-family:var(--serif);font-size:18px;font-weight:700;margin-bottom:8px;">Loading...</div><div id="dd-loader-msg" style="font-size:13px;color:#888;"></div></div>';document.body.appendChild(el);}
+  document.getElementById("dd-loader-msg").textContent=msg||"";
+}
+function hideLoader(){const el=document.getElementById("dd-loader");if(el)el.remove();}
+
 function startApp(){
   updateTopDate(); setInterval(updateTopDate,60000);
+  showLoader("Connecting to Firebase...");
   const ref=doc(db,"users",UID,"dashboard","state");
-  unsub=onSnapshot(ref,snap=>{
+  let firstLoad=true;
+  unsub=onSnapshot(ref, snap=>{
     if(snap.exists()){ const d=snap.data(); if(d.days)S.days=d.days; if(d.yearGoals)S.yearGoals=d.yearGoals; if(d.quoteOrder)S.quoteOrder=d.quoteOrder; }
     if(!S.quoteOrder||S.quoteOrder.length!==QUOTES.length){ S.quoteOrder=shuffleArr(QUOTES.length); scheduleSave(); }
+    if(firstLoad){ firstLoad=false; hideLoader(); setSyncing("synced"); setTimeout(()=>setSyncing(""),2000); }
+    renderAll();
+  }, err=>{
+    hideLoader();
+    console.error("Firebase error:",err);
+    let errEl=document.getElementById("dd-err");
+    if(!errEl){errEl=document.createElement("div");errEl.id="dd-err";errEl.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#a32d2d;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;z-index:500;text-align:center;max-width:400px;";document.body.appendChild(errEl);}
+    errEl.textContent="Firebase error: "+err.message;
     renderAll();
   });
+  // 8 second safety fallback
+  setTimeout(()=>{if(firstLoad){firstLoad=false;hideLoader();renderAll();}},8000);
 }
 
 function updateTopDate(){ document.getElementById("tb-date").textContent=new Date().toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"}); }
